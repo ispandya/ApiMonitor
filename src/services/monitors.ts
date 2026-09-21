@@ -133,3 +133,12 @@ export async function deleteMonitor(id: string): Promise<boolean> {
   const result = await pool.query('DELETE FROM monitors WHERE id = $1', [id]);
   return (result.rowCount ?? 0) > 0;
 }
+
+export async function listActiveMonitorSchedules(): Promise<
+  Pick<Monitor, 'id' | 'interval_seconds'>[]
+> {
+  const { rows } = await pool.query<Pick<Monitor, 'id' | 'interval_seconds'>>(
+    'SELECT id, interval_seconds FROM monitors WHERE is_active',
+  );
+  return rows;
+}
