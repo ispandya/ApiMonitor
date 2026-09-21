@@ -1,5 +1,6 @@
 import { Worker } from 'bullmq';
 import { runCheck } from '../checks/runCheck';
+import { enqueueAlert } from './alertQueue';
 import { CHECK_QUEUE_NAME, type CheckJobData } from './checkJob';
 import { redisConnection } from './connection';
 import { unscheduleMonitor } from './scheduler';
@@ -23,8 +24,10 @@ export function startCheckWorker() {
         `[worker] ${monitorId} ${result.status} ${result.status_code ?? '-'} ` +
           `${result.latency_ms ?? '-'}ms${result.error_message ? ` (${result.error_message})` : ''}`,
       );
-      // Step 5 will enqueue an alert from this.
-      if (incident) console.log(`[worker] incident ${incident.event}: ${incident.id}`);
+      if (incident) {
+        console.log(`[worker] incident ${incident.event}: ${incident.id}`);
+        await enqueueAlert({ incidentId: incident.id, event: incident.event });
+      }
     },
     { connection: redisConnection, concurrency: 5 },
   );

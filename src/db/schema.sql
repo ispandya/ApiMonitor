@@ -42,3 +42,13 @@ CREATE TABLE IF NOT EXISTS incidents (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_incidents_one_open_per_monitor
   ON incidents (monitor_id)
   WHERE resolved_at IS NULL;
+
+
+-- One row per alert that was actually delivered. The primary key means a given event
+-- of a given incident can be recorded as delivered only once.
+CREATE TABLE IF NOT EXISTS webhook_deliveries (
+  incident_id   UUID NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
+  event         TEXT NOT NULL CHECK (event IN ('opened', 'resolved')),
+  delivered_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (incident_id, event)
+);
