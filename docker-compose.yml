@@ -19,6 +19,14 @@ services:
     volumes:
       - redisdata:/data
 
+  # A throwaway Redis for the test suite only, so tests can never touch the development one.
+  # Start it with: docker compose --profile test up -d redis-test
+  redis-test:
+    image: redis:7-alpine
+    profiles: ["test"]
+    ports:
+      - "6390:6379"
+
 volumes:
   pgdata:
   redisdata:

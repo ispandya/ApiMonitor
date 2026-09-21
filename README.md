@@ -133,6 +133,28 @@ Defaults match `docker-compose.yml`, so local development needs no configuration
 
 The credentials in `docker-compose.yml` are for local development only.
 
+## Testing
+
+```bash
+docker compose up -d
+docker compose --profile test up -d redis-test   # a separate Redis on port 6390
+
+npm test               # everything: 142 tests, about a minute
+npm run test:unit      # only the tests that need no database or Redis (about a second)
+npm run typecheck
+```
+
+- **Unit tests** cover the pieces that can be tested alone: request validation, the HTTP probe, webhook
+  delivery and its retry rules, the error handler, and key generation.
+- **Integration tests** run against real Postgres and Redis (no mocks), because nearly every bug worth
+  catching here lives in the seams: transactions and row locks, races between workers, the queue,
+  partitioning, migrations, the rate limiter, sockets, and ownership isolation. One test runs the
+  whole pipeline with the real workers: a failing API becomes one incident, two webhooks and live events.
+- **The suite cannot touch your data.** It uses its own database (`api_monitor_test`, recreated on every
+  run) and its own Redis, and refuses to start if pointed at anything else.
+- **CI** runs the typecheck and the full suite on every push and pull request
+  (`.github/workflows/ci.yml`).
+
 ## Design decisions
 
 The parts I'd want to talk through in an interview.
@@ -176,9 +198,7 @@ with accounts without ever breaking the running code.
 
 Written down deliberately, since knowing them matters as much as the features.
 
-- **No automated test suite yet.** Behavior was verified with throwaway scripts against real
-  Postgres and Redis (including race conditions, retries, and a headless-browser run of the
-  dashboard). Turning those into a real test suite is the obvious next step.
+- **The suite runs serially** against one shared test database, because parallel test files would collide, and a few tests wait on real time (retry backoff, rate-limit windows), so they are slower than pure unit tests.
 - **No SSRF protection.** A monitor can point at `localhost` or a private address, and the worker
   will request it. Fine for a private deployment, not for a public one.
 - The fixed-window rate limiter allows up to 2× the limit in a burst across a window boundary.
@@ -204,4 +224,6 @@ src/
   maintenance/        partition creation and retention
   db/                 pool and migrations/
 public/               the dashboard (plain HTML and JS)
+test/                 unit/ and integration/ tests, shared helpers, one-time setup
+.github/workflows/    CI
 ```

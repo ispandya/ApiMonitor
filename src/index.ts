@@ -1,28 +1,10 @@
-import path from 'node:path';
-import express from 'express';
-import { errorHandler } from './middleware/errorHandler';
-import { ipLimiter, keyLimiter } from './middleware/limits';
-import { requireApiKey } from './middleware/requireApiKey';
+import { createApp } from './app';
 import { reconcileSchedules } from './queue/reconcile';
 import { startEventBridge } from './realtime/bridge';
 import { attachSocketServer } from './realtime/socket';
-import { monitorsRouter } from './routes/monitors';
 
-const app = express();
-const PORT = 4000;
-
-app.use(express.json());
-
-// The dashboard: plain HTML and JS in /public, served from the same origin as the API.
-app.use(express.static(path.join(__dirname, '..', 'public')));
-// Order matters: cheap per-IP limit first, then authenticate, then the per-key limit.
-app.use('/monitors', ipLimiter, requireApiKey, keyLimiter, monitorsRouter);
-
-app.get('/health', (req, res) => {
-  res.json({ ok: true });
-});
-
-app.use(errorHandler);
+const app = createApp();
+const PORT = Number(process.env.PORT ?? 4000);
 
 const server = app.listen(PORT, (err?: Error) => {
   // Express 5 passes startup failures (for example port already in use) to this callback.

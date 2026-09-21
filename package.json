@@ -9,7 +9,10 @@
     "worker": "tsx src/worker.ts",
     "account:create": "tsx src/scripts/createAccount.ts",
     "key:create": "tsx src/scripts/createApiKey.ts",
-    "key:revoke": "tsx src/scripts/revokeApiKey.ts"
+    "key:revoke": "tsx src/scripts/revokeApiKey.ts",
+    "typecheck": "tsc --noEmit",
+    "test:unit": "node --import tsx --test --test-force-exit \"test/unit/**/*.test.ts\"",
+    "test": "node --env-file=.env.test --import tsx test/setup.ts && node --env-file=.env.test --import tsx --test --test-concurrency=1 --test-force-exit \"test/**/*.test.ts\""
   },
   "keywords": [],
   "author": "",
