@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { ZodError } from 'zod';
+import { scheduleMonitor } from '../queue/scheduler';
 import { createMonitorSchema, monitorIdSchema, updateMonitorSchema } from '../schemas/monitors';
 import { createMonitor, deleteMonitor, getMonitor, listMonitors, updateMonitor } from '../services/monitors';
 
@@ -42,6 +43,7 @@ monitorsRouter.post('/', async (req, res) => {
   }
 
   const monitor = await createMonitor(parsed.data);
+  await scheduleMonitor(monitor);
   res.status(201).location(`/monitors/${monitor.id}`).json(monitor);
 });
 
