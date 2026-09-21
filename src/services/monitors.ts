@@ -128,3 +128,8 @@ export async function updateMonitor(
     client.release();
   }
 }
+
+export async function deleteMonitor(id: string): Promise<boolean> {
+  const result = await pool.query('DELETE FROM monitors WHERE id = $1', [id]);
+  return (result.rowCount ?? 0) > 0;
+}

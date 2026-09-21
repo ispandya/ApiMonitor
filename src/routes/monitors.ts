@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { ZodError } from 'zod';
 import { createMonitorSchema, monitorIdSchema, updateMonitorSchema } from '../schemas/monitors';
-import { createMonitor, getMonitor, listMonitors, updateMonitor } from '../services/monitors';
+import { createMonitor, deleteMonitor, getMonitor, listMonitors, updateMonitor } from '../services/monitors';
 
 export const monitorsRouter = Router();
 
@@ -73,4 +73,19 @@ monitorsRouter.patch('/:id', async (req, res) => {
       });
       return;
   }
+});
+
+monitorsRouter.delete('/:id', async (req, res) => {
+  const parsedId = monitorIdSchema.safeParse(req.params.id);
+  if (!parsedId.success) {
+    res.status(400).json({ error: 'Invalid monitor id' });
+    return;
+  }
+
+  const deleted = await deleteMonitor(parsedId.data);
+  if (!deleted) {
+    res.status(404).json({ error: 'Monitor not found' });
+    return;
+  }
+  res.status(204).end();
 });
