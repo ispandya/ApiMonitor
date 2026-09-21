@@ -4,6 +4,7 @@ import { monitorsRouter } from './routes/monitors';
 const app = express();
 const PORT = 4000;
 
+app.use(express.json());
 app.use('/monitors', monitorsRouter);
 
 app.get('/health', (req, res) => {

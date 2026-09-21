@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { monitorIdSchema } from '../schemas/monitors';
-import { getMonitor, listMonitors } from '../services/monitors';
+import { createMonitorSchema, monitorIdSchema } from '../schemas/monitors';
+import { createMonitor, getMonitor, listMonitors } from '../services/monitors';
 
 export const monitorsRouter = Router();
 
@@ -21,4 +21,21 @@ monitorsRouter.get('/:id', async (req, res) => {
     return;
   }
   res.json(monitor);
+});
+
+monitorsRouter.post('/', async (req, res) => {
+  const parsed = createMonitorSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({
+      error: 'Invalid monitor',
+      details: parsed.error.issues.map((issue) => ({
+        field: issue.path.join('.') || 'body',
+        message: issue.message,
+      })),
+    });
+    return;
+  }
+
+  const monitor = await createMonitor(parsed.data);
+  res.status(201).location(`/monitors/${monitor.id}`).json(monitor);
 });
