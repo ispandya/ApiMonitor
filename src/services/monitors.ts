@@ -21,3 +21,11 @@ export async function listMonitors(): Promise<Monitor[]> {
   );
   return rows;
 }
+
+export async function getMonitor(id: string): Promise<Monitor | null> {
+  const { rows } = await pool.query<Monitor>(
+    'SELECT * FROM monitors WHERE id = $1',
+    [id],
+  );
+  return rows[0] ?? null;
+}
