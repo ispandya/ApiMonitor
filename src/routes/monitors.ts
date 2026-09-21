@@ -96,6 +96,9 @@ monitorsRouter.delete('/:id', async (req, res) => {
   }
 
   const deleted = await deleteMonitor(parsedId.data);
+  // Also runs when the row was already gone: this clears a scheduler orphaned by a
+  // crash between the two writes, and removing a missing scheduler is harmless.
+  await unscheduleMonitor(parsedId.data);
   if (!deleted) {
     res.status(404).json({ error: 'Monitor not found' });
     return;
