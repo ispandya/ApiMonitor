@@ -7,7 +7,9 @@
     "dev": "tsx watch src/index.ts",
     "db:migrate": "tsx src/db/migrate.ts",
     "worker": "tsx src/worker.ts",
-    "key:create": "tsx src/scripts/createApiKey.ts"
+    "account:create": "tsx src/scripts/createAccount.ts",
+    "key:create": "tsx src/scripts/createApiKey.ts",
+    "key:revoke": "tsx src/scripts/revokeApiKey.ts"
   },
   "keywords": [],
   "author": "",

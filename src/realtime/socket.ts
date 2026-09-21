@@ -22,12 +22,12 @@ export function attachSocketServer(httpServer: HttpServer): Server {
       next(new Error('Unauthorized'));
       return;
     }
-    socket.data.apiKeyId = record.id;
+    socket.data.accountId = record.accountId;
     next();
   });
 
   io.on('connection', (socket) => {
-    const ownerId = socket.data.apiKeyId as string;
+    const ownerId = socket.data.accountId as string;
 
     socket.on('subscribe', async (monitorId: unknown, ack?: Ack) => {
       // Anything a client sends is untrusted, sockets included, so validate here too.

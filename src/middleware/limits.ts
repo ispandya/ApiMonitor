@@ -9,12 +9,13 @@ export const ipLimiter = rateLimit({
   identify: (req) => req.ip,
 });
 
-// After authentication: fair usage per API key.
+// After authentication: fair usage per ACCOUNT, not per key, so an account cannot multiply
+// its allowance by creating more keys.
 export const keyLimiter = rateLimit({
   name: 'key',
   limit: 60,
   windowSeconds: 60,
-  identify: (req) => req.apiKey?.id,
+  identify: (req) => req.apiKey?.accountId,
 });
 
 // Creating a monitor starts recurring work against someone else's server, so it is
@@ -23,5 +24,5 @@ export const createLimiter = rateLimit({
   name: 'create',
   limit: 10,
   windowSeconds: 60,
-  identify: (req) => req.apiKey?.id,
+  identify: (req) => req.apiKey?.accountId,
 });

@@ -24,9 +24,9 @@ export const requireApiKey: RequestHandler = async (req, res, next) => {
   next();
 };
 
-// The id of the API key making this request. Only valid on routes behind requireApiKey;
-// reaching this without a key would be a programming error, so it throws.
-export function apiKeyId(req: Request): string {
-  if (!req.apiKey) throw new Error('apiKeyId() used on a route that is not behind requireApiKey');
-  return req.apiKey.id;
+// The account the calling key belongs to: this is what owns monitors. Only valid on routes
+// behind requireApiKey; reaching this without a key would be a programming error, so it throws.
+export function accountId(req: Request): string {
+  if (!req.apiKey) throw new Error('accountId() used on a route that is not behind requireApiKey');
+  return req.apiKey.accountId;
 }

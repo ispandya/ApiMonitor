@@ -12,14 +12,14 @@ export interface Monitor {
   is_active: boolean;
   current_status: string;
   webhook_url: string | null;
-  api_key_id: string | null;
+  account_id: string | null;
   created_at: Date;
   updated_at: Date;
 }
 
 export async function listMonitors(ownerId: string): Promise<Monitor[]> {
   const { rows } = await pool.query<Monitor>(
-    'SELECT * FROM monitors WHERE api_key_id = $1 ORDER BY created_at DESC',
+    'SELECT * FROM monitors WHERE account_id = $1 ORDER BY created_at DESC',
     [ownerId],
   );
   return rows;
@@ -39,7 +39,7 @@ export async function getMonitorUnscoped(id: string): Promise<Monitor | null> {
 // cannot even discover which ids are in use.
 export async function getMonitorForOwner(id: string, ownerId: string): Promise<Monitor | null> {
   const { rows } = await pool.query<Monitor>(
-    'SELECT * FROM monitors WHERE id = $1 AND api_key_id = $2',
+    'SELECT * FROM monitors WHERE id = $1 AND account_id = $2',
     [id, ownerId],
   );
   return rows[0] ?? null;
@@ -48,7 +48,7 @@ export async function getMonitorForOwner(id: string, ownerId: string): Promise<M
 export async function createMonitor(input: CreateMonitorInput, ownerId: string): Promise<Monitor> {
   const { rows } = await pool.query<Monitor>(
     `INSERT INTO monitors
-       (name, url, method, expected_status, interval_seconds, timeout_ms, webhook_url, api_key_id)
+       (name, url, method, expected_status, interval_seconds, timeout_ms, webhook_url, account_id)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
     [
@@ -98,7 +98,7 @@ export async function updateMonitor(
     // FOR UPDATE locks the row until COMMIT, so nobody can change it between our
     // check and our write.
     const current = await client.query<Monitor>(
-      'SELECT * FROM monitors WHERE id = $1 AND api_key_id = $2 FOR UPDATE',
+      'SELECT * FROM monitors WHERE id = $1 AND account_id = $2 FOR UPDATE',
       [id, ownerId],
     );
     const existing = current.rows[0];
@@ -146,7 +146,7 @@ export async function updateMonitor(
 }
 
 export async function deleteMonitor(id: string, ownerId: string): Promise<boolean> {
-  const result = await pool.query('DELETE FROM monitors WHERE id = $1 AND api_key_id = $2', [id, ownerId]);
+  const result = await pool.query('DELETE FROM monitors WHERE id = $1 AND account_id = $2', [id, ownerId]);
   return (result.rowCount ?? 0) > 0;
 }
 
@@ -160,6 +160,6 @@ export async function listActiveMonitorSchedules(): Promise<
 }
 
 export async function isMonitorOwnedBy(id: string, ownerId: string): Promise<boolean> {
-  const { rowCount } = await pool.query('SELECT 1 FROM monitors WHERE id = $1 AND api_key_id = $2', [id, ownerId]);
+  const { rowCount } = await pool.query('SELECT 1 FROM monitors WHERE id = $1 AND account_id = $2', [id, ownerId]);
   return (rowCount ?? 0) > 0;
 }

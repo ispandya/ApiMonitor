@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { ZodError } from 'zod';
 import { createLimiter } from '../middleware/limits';
-import { apiKeyId } from '../middleware/requireApiKey';
+import { accountId } from '../middleware/requireApiKey';
 import { scheduleMonitor, unscheduleMonitor } from '../queue/scheduler';
 import { checksQuerySchema, createMonitorSchema, monitorIdSchema, updateMonitorSchema } from '../schemas/monitors';
 import { listChecks } from '../services/checks';
@@ -27,7 +27,7 @@ function invalidBody(error: ZodError) {
 }
 
 monitorsRouter.get('/', async (req, res) => {
-  res.json(await listMonitors(apiKeyId(req)));
+  res.json(await listMonitors(accountId(req)));
 });
 
 monitorsRouter.get('/:id', async (req, res) => {
@@ -37,7 +37,7 @@ monitorsRouter.get('/:id', async (req, res) => {
     return;
   }
 
-  const monitor = await getMonitorForOwner(parsedId.data, apiKeyId(req));
+  const monitor = await getMonitorForOwner(parsedId.data, accountId(req));
   if (!monitor) {
     res.status(404).json({ error: 'Monitor not found' });
     return;
@@ -52,7 +52,7 @@ monitorsRouter.post('/', createLimiter, async (req, res) => {
     return;
   }
 
-  const monitor = await createMonitor(parsed.data, apiKeyId(req));
+  const monitor = await createMonitor(parsed.data, accountId(req));
   await scheduleMonitor(monitor);
   res.status(201).location(`/monitors/${monitor.id}`).json(monitor);
 });
@@ -70,7 +70,7 @@ monitorsRouter.patch('/:id', async (req, res) => {
     return;
   }
 
-  const result = await updateMonitor(parsedId.data, apiKeyId(req), parsedBody.data);
+  const result = await updateMonitor(parsedId.data, accountId(req), parsedBody.data);
   switch (result.status) {
     case 'updated': {
       // Only these two fields affect the schedule. Anything else (name, url, ...) is
@@ -105,7 +105,7 @@ monitorsRouter.delete('/:id', async (req, res) => {
     return;
   }
 
-  const deleted = await deleteMonitor(parsedId.data, apiKeyId(req));
+  const deleted = await deleteMonitor(parsedId.data, accountId(req));
   if (deleted) {
     await unscheduleMonitor(parsedId.data);
   } else if (!(await getMonitorUnscoped(parsedId.data))) {
@@ -133,7 +133,7 @@ monitorsRouter.get('/:id/checks', async (req, res) => {
     return;
   }
 
-  const monitor = await getMonitorForOwner(parsedId.data, apiKeyId(req));
+  const monitor = await getMonitorForOwner(parsedId.data, accountId(req));
   if (!monitor) {
     res.status(404).json({ error: 'Monitor not found' });
     return;
