@@ -3,7 +3,8 @@ import type { ZodError } from 'zod';
 import { createLimiter } from '../middleware/limits';
 import { apiKeyId } from '../middleware/requireApiKey';
 import { scheduleMonitor, unscheduleMonitor } from '../queue/scheduler';
-import { createMonitorSchema, monitorIdSchema, updateMonitorSchema } from '../schemas/monitors';
+import { checksQuerySchema, createMonitorSchema, monitorIdSchema, updateMonitorSchema } from '../schemas/monitors';
+import { listChecks } from '../services/checks';
 import {
   createMonitor,
   deleteMonitor,
@@ -118,4 +119,24 @@ monitorsRouter.delete('/:id', async (req, res) => {
     return;
   }
   res.status(204).end();
+});
+
+monitorsRouter.get('/:id/checks', async (req, res) => {
+  const parsedId = monitorIdSchema.safeParse(req.params.id);
+  if (!parsedId.success) {
+    res.status(400).json({ error: 'Invalid monitor id' });
+    return;
+  }
+  const query = checksQuerySchema.safeParse(req.query);
+  if (!query.success) {
+    res.status(400).json({ error: 'Invalid query', details: [{ field: 'limit', message: 'must be a whole number from 1 to 500' }] });
+    return;
+  }
+
+  const monitor = await getMonitorForOwner(parsedId.data, apiKeyId(req));
+  if (!monitor) {
+    res.status(404).json({ error: 'Monitor not found' });
+    return;
+  }
+  res.json(await listChecks(monitor.id, query.data.limit));
 });

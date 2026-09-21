@@ -73,3 +73,25 @@ export async function recordCheck(monitorId: string, result: ProbeResult): Promi
     client.release();
   }
 }
+
+export interface CheckRow {
+  status: string;
+  status_code: number | null;
+  latency_ms: number | null;
+  error_message: string | null;
+  checked_at: Date;
+}
+
+// Newest first. Served by idx_checks_monitor_time (monitor_id, checked_at DESC), so this
+// stays fast however many checks a monitor has accumulated.
+export async function listChecks(monitorId: string, limit: number): Promise<CheckRow[]> {
+  const { rows } = await pool.query<CheckRow>(
+    `SELECT status, status_code, latency_ms, error_message, checked_at
+       FROM checks
+      WHERE monitor_id = $1
+      ORDER BY checked_at DESC
+      LIMIT $2`,
+    [monitorId, limit],
+  );
+  return rows;
+}

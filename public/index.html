@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>API Monitor</title>
+  <style>
+    :root { --bg:#f6f7f9; --card:#fff; --text:#1c2430; --muted:#66707d; --line:#dde1e6; --up:#1a9a55; --down:#d23b3b; --unknown:#8a93a0; --accent:#2f6fed; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#12161c; --card:#1b212a; --text:#e7ebf0; --muted:#9aa5b1; --line:#2b333e; --up:#38c172; --down:#ef5b5b; --unknown:#78828f; --accent:#6b9bff; } }
+    * { box-sizing: border-box; }
+    body { margin:0; font:15px/1.45 system-ui, sans-serif; background:var(--bg); color:var(--text); }
+    header { display:flex; align-items:center; gap:12px; padding:14px 20px; background:var(--card); border-bottom:1px solid var(--line); }
+    header h1 { font-size:18px; margin:0; flex:1; }
+    button { font:inherit; padding:7px 14px; border-radius:6px; border:1px solid var(--line); background:var(--card); color:var(--text); cursor:pointer; }
+    button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+    input { font:inherit; padding:8px 10px; border-radius:6px; border:1px solid var(--line); background:var(--bg); color:var(--text); width:100%; }
+    .pill { font-size:12px; padding:3px 9px; border-radius:99px; border:1px solid var(--line); color:var(--muted); }
+    .pill.on { color:var(--up); border-color:var(--up); }
+    #login { max-width:420px; margin:12vh auto; padding:0 20px; }
+    #login form { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:20px; display:grid; gap:12px; }
+    #login p { margin:0; color:var(--muted); }
+    #error { color:var(--down); min-height:1.3em; }
+    /* minmax(0, ...) lets a grid track shrink below its content's natural width; without it a
+       long unbreakable monitor name stretches the column and spills over its neighbour. */
+    #app { display:grid; grid-template-columns:minmax(0, 280px) minmax(0, 1fr); gap:16px; padding:16px 20px; }
+    @media (max-width: 800px) { #app { grid-template-columns:minmax(0, 1fr); } }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; min-width:0; }
+    #list { list-style:none; margin:8px 0 0; padding:0; display:grid; grid-template-columns:minmax(0, 1fr); gap:6px; }
+    #list li { display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:8px; cursor:pointer; border:1px solid transparent; }
+    #list li:hover { background:var(--bg); }
+    #list li.selected { border-color:var(--accent); }
+    .dot { width:10px; height:10px; border-radius:50%; background:var(--unknown); flex:none; }
+    .dot.up { background:var(--up); }
+    .dot.down { background:var(--down); }
+    .name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .muted { color:var(--muted); font-size:13px; }
+    h2 { margin:0 0 2px; font-size:17px; }
+    #chartbox { position:relative; height:260px; margin:12px 0; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th, td { text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); }
+    td.up { color:var(--up); }
+    td.down { color:var(--down); }
+    #feed { list-style:none; margin:8px 0 0; padding:0; font-size:13px; display:grid; gap:4px; }
+    #feed li.down { color:var(--down); }
+    #feed li.up { color:var(--up); }
+    .stack { display:grid; grid-template-columns:minmax(0, 1fr); gap:16px; align-content:start; }
+    [hidden] { display:none !important; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>API Monitor</h1>
+    <span id="conn" class="pill">offline</span>
+    <button id="logout" hidden>Sign out</button>
+  </header>
+
+  <main id="login">
+    <form id="loginform">
+      <p>Enter an API key to view your monitors. Create one with <code>npm run key:create</code>.</p>
+      <input id="keyinput" type="password" placeholder="am_..." autocomplete="off" required>
+      <button class="primary" type="submit">Sign in</button>
+      <div id="error" role="alert"></div>
+    </form>
+  </main>
+
+  <main id="app" hidden>
+    <aside class="stack">
+      <div class="card">
+        <strong>Monitors</strong>
+        <ul id="list"></ul>
+        <div id="empty" class="muted" hidden>No monitors yet. Create one through the API.</div>
+      </div>
+      <div class="card"><strong>Live activity</strong><ul id="feed"></ul></div>
+    </aside>
+    <section class="card">
+      <div id="placeholder" class="muted">Select a monitor.</div>
+      <div id="detail" hidden>
+        <h2 id="title"></h2>
+        <div id="meta" class="muted"></div>
+        <div id="chartbox"><canvas id="chart"></canvas></div>
+        <strong>Recent checks</strong>
+        <table>
+          <thead><tr><th>Time</th><th>Status</th><th>Code</th><th>Latency</th><th>Note</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -158,3 +158,8 @@ export async function listActiveMonitorSchedules(): Promise<
   );
   return rows;
 }
+
+export async function isMonitorOwnedBy(id: string, ownerId: string): Promise<boolean> {
+  const { rowCount } = await pool.query('SELECT 1 FROM monitors WHERE id = $1 AND api_key_id = $2', [id, ownerId]);
+  return (rowCount ?? 0) > 0;
+}

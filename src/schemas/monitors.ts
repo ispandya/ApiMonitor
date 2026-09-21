@@ -37,3 +37,8 @@ export const updateMonitorSchema = z.object(fields).partial().extend({
 
 export type CreateMonitorInput = z.infer<typeof createMonitorSchema>;
 export type UpdateMonitorInput = z.infer<typeof updateMonitorSchema>;
+
+// ?limit=N on the check history endpoint. Capped so one request cannot ask for the world.
+export const checksQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(500).default(100),
+});
