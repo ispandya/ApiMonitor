@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { ZodError } from 'zod';
+import { createLimiter } from '../middleware/limits';
 import { scheduleMonitor, unscheduleMonitor } from '../queue/scheduler';
 import { createMonitorSchema, monitorIdSchema, updateMonitorSchema } from '../schemas/monitors';
 import { createMonitor, deleteMonitor, getMonitor, listMonitors, updateMonitor } from '../services/monitors';
@@ -35,7 +36,7 @@ monitorsRouter.get('/:id', async (req, res) => {
   res.json(monitor);
 });
 
-monitorsRouter.post('/', async (req, res) => {
+monitorsRouter.post('/', createLimiter, async (req, res) => {
   const parsed = createMonitorSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json(invalidBody(parsed.error));

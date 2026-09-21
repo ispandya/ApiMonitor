@@ -1,5 +1,7 @@
 import express from 'express';
 import { errorHandler } from './middleware/errorHandler';
+import { ipLimiter, keyLimiter } from './middleware/limits';
+import { requireApiKey } from './middleware/requireApiKey';
 import { reconcileSchedules } from './queue/reconcile';
 import { startEventBridge } from './realtime/bridge';
 import { attachSocketServer } from './realtime/socket';
@@ -9,7 +11,8 @@ const app = express();
 const PORT = 4000;
 
 app.use(express.json());
-app.use('/monitors', monitorsRouter);
+// Order matters: cheap per-IP limit first, then authenticate, then the per-key limit.
+app.use('/monitors', ipLimiter, requireApiKey, keyLimiter, monitorsRouter);
 
 app.get('/health', (req, res) => {
   res.json({ ok: true });
