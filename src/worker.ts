@@ -1,6 +1,7 @@
 import { sweepAlerts } from './alerts/sweep';
 import { startAlertWorker } from './queue/alertWorker';
 import { startCheckWorker } from './queue/checkWorker';
+import { closePublisher } from './realtime/publish';
 
 const checkWorker = startCheckWorker();
 const alertWorker = startAlertWorker();
@@ -30,6 +31,7 @@ async function shutdown(signal: string) {
   console.log(`[worker] ${signal} received, finishing active jobs`);
   clearInterval(sweepTimer);
   await Promise.all([checkWorker.close(), alertWorker.close()]);
+  await closePublisher();
   process.exit(0);
 }
 

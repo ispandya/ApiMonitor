@@ -8,7 +8,7 @@ export interface IncidentChange {
 
 export type RecordResult =
   | { recorded: false }
-  | { recorded: true; previousStatus: string; incident: IncidentChange | null };
+  | { recorded: true; previousStatus: string; checkedAt: Date; incident: IncidentChange | null };
 
 // Saves a probe result and updates the monitor's current_status in one transaction.
 // Call it AFTER probing: the lock below must never be held while waiting on the network.
@@ -29,11 +29,14 @@ export async function recordCheck(monitorId: string, result: ProbeResult): Promi
       return { recorded: false };
     }
 
-    await client.query(
+    const inserted = await client.query<{ checked_at: Date }>(
       `INSERT INTO checks (monitor_id, status, status_code, latency_ms, error_message)
-       VALUES ($1, $2, $3, $4, $5)`,
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING checked_at`,
       [monitorId, result.status, result.status_code, result.latency_ms, result.error_message],
     );
+    const checkedAt = inserted.rows[0]?.checked_at;
+    if (!checkedAt) throw new Error('INSERT INTO checks returned no row');
 
     // Only write when the status changed: rewriting an identical row every minute would
     // still create a new row version in Postgres, for no benefit.
@@ -62,7 +65,7 @@ export async function recordCheck(monitorId: string, result: ProbeResult): Promi
     }
 
     await client.query('COMMIT');
-    return { recorded: true, previousStatus: monitor.current_status, incident };
+    return { recorded: true, previousStatus: monitor.current_status, checkedAt, incident };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;

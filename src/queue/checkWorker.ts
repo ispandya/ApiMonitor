@@ -1,5 +1,6 @@
 import { Worker } from 'bullmq';
 import { runCheck } from '../checks/runCheck';
+import { publishEvent } from '../realtime/publish';
 import { enqueueAlert } from './alertQueue';
 import { CHECK_QUEUE_NAME, type CheckJobData } from './checkJob';
 import { redisConnection } from './connection';
@@ -19,13 +20,25 @@ export function startCheckWorker() {
         return;
       }
 
-      const { result, incident } = outcome;
+      const { result, checkedAt, incident } = outcome;
       console.log(
         `[worker] ${monitorId} ${result.status} ${result.status_code ?? '-'} ` +
           `${result.latency_ms ?? '-'}ms${result.error_message ? ` (${result.error_message})` : ''}`,
       );
+
+      // Live updates for dashboards. Best effort, so they come before anything that could throw.
+      await publishEvent({
+        type: 'check',
+        monitorId,
+        status: result.status,
+        status_code: result.status_code,
+        latency_ms: result.latency_ms,
+        error_message: result.error_message,
+        checked_at: checkedAt.toISOString(),
+      });
       if (incident) {
         console.log(`[worker] incident ${incident.event}: ${incident.id}`);
+        await publishEvent({ type: 'incident', monitorId, incidentId: incident.id, event: incident.event });
         await enqueueAlert({ incidentId: incident.id, event: incident.event });
       }
     },
