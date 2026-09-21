@@ -37,3 +37,8 @@ CREATE TABLE IF NOT EXISTS incidents (
   cause           TEXT,
   notified        BOOLEAN NOT NULL DEFAULT false
 );
+
+-- At most one open incident per monitor. Resolved incidents are unrestricted.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_incidents_one_open_per_monitor
+  ON incidents (monitor_id)
+  WHERE resolved_at IS NULL;

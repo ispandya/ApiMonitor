@@ -1,9 +1,14 @@
 import type { ProbeResult } from '../checks/probe';
 import { pool } from '../db/pool';
 
+export interface IncidentChange {
+  id: string;
+  event: 'opened' | 'resolved';
+}
+
 export type RecordResult =
   | { recorded: false }
-  | { recorded: true; previousStatus: string };
+  | { recorded: true; previousStatus: string; incident: IncidentChange | null };
 
 // Saves a probe result and updates the monitor's current_status in one transaction.
 // Call it AFTER probing: the lock below must never be held while waiting on the network.
@@ -37,8 +42,27 @@ export async function recordCheck(monitorId: string, result: ProbeResult): Promi
       [monitorId, result.status],
     );
 
+    // An incident is one row per outage, so it only changes on a TRANSITION.
+    const wentDown = result.status === 'down' && monitor.current_status !== 'down';
+    const recovered = result.status === 'up' && monitor.current_status === 'down';
+    let incident: IncidentChange | null = null;
+
+    if (wentDown) {
+      const opened = await client.query<{ id: string }>(
+        'INSERT INTO incidents (monitor_id, cause) VALUES ($1, $2) RETURNING id',
+        [monitorId, result.error_message],
+      );
+      if (opened.rows[0]) incident = { id: opened.rows[0].id, event: 'opened' };
+    } else if (recovered) {
+      const resolved = await client.query<{ id: string }>(
+        'UPDATE incidents SET resolved_at = now() WHERE monitor_id = $1 AND resolved_at IS NULL RETURNING id',
+        [monitorId],
+      );
+      if (resolved.rows[0]) incident = { id: resolved.rows[0].id, event: 'resolved' };
+    }
+
     await client.query('COMMIT');
-    return { recorded: true, previousStatus: monitor.current_status };
+    return { recorded: true, previousStatus: monitor.current_status, incident };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
