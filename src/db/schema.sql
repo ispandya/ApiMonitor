@@ -63,3 +63,12 @@ CREATE TABLE IF NOT EXISTS api_keys (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   revoked_at  TIMESTAMPTZ
 );
+
+
+-- Who owns a monitor. Nullable so monitors that existed before ownership was added are
+-- still valid; they belong to no key and are not visible through the API. There is no
+-- ON DELETE CASCADE: a key that still owns monitors cannot be deleted (revoke it instead).
+ALTER TABLE monitors ADD COLUMN IF NOT EXISTS api_key_id UUID REFERENCES api_keys(id);
+
+-- Postgres does not index foreign keys automatically, and every list query filters by owner.
+CREATE INDEX IF NOT EXISTS idx_monitors_api_key ON monitors (api_key_id);

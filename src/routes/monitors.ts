@@ -1,9 +1,17 @@
 import { Router } from 'express';
 import type { ZodError } from 'zod';
 import { createLimiter } from '../middleware/limits';
+import { apiKeyId } from '../middleware/requireApiKey';
 import { scheduleMonitor, unscheduleMonitor } from '../queue/scheduler';
 import { createMonitorSchema, monitorIdSchema, updateMonitorSchema } from '../schemas/monitors';
-import { createMonitor, deleteMonitor, getMonitor, listMonitors, updateMonitor } from '../services/monitors';
+import {
+  createMonitor,
+  deleteMonitor,
+  getMonitorForOwner,
+  getMonitorUnscoped,
+  listMonitors,
+  updateMonitor,
+} from '../services/monitors';
 
 export const monitorsRouter = Router();
 
@@ -17,8 +25,8 @@ function invalidBody(error: ZodError) {
   };
 }
 
-monitorsRouter.get('/', async (_req, res) => {
-  res.json(await listMonitors());
+monitorsRouter.get('/', async (req, res) => {
+  res.json(await listMonitors(apiKeyId(req)));
 });
 
 monitorsRouter.get('/:id', async (req, res) => {
@@ -28,7 +36,7 @@ monitorsRouter.get('/:id', async (req, res) => {
     return;
   }
 
-  const monitor = await getMonitor(parsedId.data);
+  const monitor = await getMonitorForOwner(parsedId.data, apiKeyId(req));
   if (!monitor) {
     res.status(404).json({ error: 'Monitor not found' });
     return;
@@ -43,7 +51,7 @@ monitorsRouter.post('/', createLimiter, async (req, res) => {
     return;
   }
 
-  const monitor = await createMonitor(parsed.data);
+  const monitor = await createMonitor(parsed.data, apiKeyId(req));
   await scheduleMonitor(monitor);
   res.status(201).location(`/monitors/${monitor.id}`).json(monitor);
 });
@@ -61,7 +69,7 @@ monitorsRouter.patch('/:id', async (req, res) => {
     return;
   }
 
-  const result = await updateMonitor(parsedId.data, parsedBody.data);
+  const result = await updateMonitor(parsedId.data, apiKeyId(req), parsedBody.data);
   switch (result.status) {
     case 'updated': {
       // Only these two fields affect the schedule. Anything else (name, url, ...) is
@@ -96,10 +104,15 @@ monitorsRouter.delete('/:id', async (req, res) => {
     return;
   }
 
-  const deleted = await deleteMonitor(parsedId.data);
-  // Also runs when the row was already gone: this clears a scheduler orphaned by a
-  // crash between the two writes, and removing a missing scheduler is harmless.
-  await unscheduleMonitor(parsedId.data);
+  const deleted = await deleteMonitor(parsedId.data, apiKeyId(req));
+  if (deleted) {
+    await unscheduleMonitor(parsedId.data);
+  } else if (!(await getMonitorUnscoped(parsedId.data))) {
+    // No such monitor at all, so a scheduler left behind by a crash is an orphan: clear it.
+    // If the monitor exists but belongs to someone else, its schedule must NOT be touched,
+    // or one caller could stop another caller's monitoring just by sending a DELETE.
+    await unscheduleMonitor(parsedId.data);
+  }
   if (!deleted) {
     res.status(404).json({ error: 'Monitor not found' });
     return;

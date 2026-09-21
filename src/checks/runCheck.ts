@@ -1,4 +1,4 @@
-import { getMonitor } from '../services/monitors';
+import { getMonitorUnscoped } from '../services/monitors';
 import { recordCheck, type IncidentChange } from '../services/checks';
 import { probe, type ProbeResult } from './probe';
 
@@ -9,7 +9,7 @@ export type CheckOutcome =
 // One full check: load the monitor, probe it, record the result.
 // The monitor is loaded fresh on every run, so edits and pauses take effect immediately.
 export async function runCheck(monitorId: string): Promise<CheckOutcome> {
-  const monitor = await getMonitor(monitorId);
+  const monitor = await getMonitorUnscoped(monitorId);
   if (!monitor) return { kind: 'skipped', reason: 'not_found' };
   if (!monitor.is_active) return { kind: 'skipped', reason: 'paused' };
 

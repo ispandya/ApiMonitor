@@ -12,18 +12,22 @@ export interface Monitor {
   is_active: boolean;
   current_status: string;
   webhook_url: string | null;
+  api_key_id: string | null;
   created_at: Date;
   updated_at: Date;
 }
 
-export async function listMonitors(): Promise<Monitor[]> {
+export async function listMonitors(ownerId: string): Promise<Monitor[]> {
   const { rows } = await pool.query<Monitor>(
-    'SELECT * FROM monitors ORDER BY created_at DESC',
+    'SELECT * FROM monitors WHERE api_key_id = $1 ORDER BY created_at DESC',
+    [ownerId],
   );
   return rows;
 }
 
-export async function getMonitor(id: string): Promise<Monitor | null> {
+// NOT scoped to an owner. For the worker and other internal code, which act for the
+// system. Anything reached from an HTTP request must use getMonitorForOwner instead.
+export async function getMonitorUnscoped(id: string): Promise<Monitor | null> {
   const { rows } = await pool.query<Monitor>(
     'SELECT * FROM monitors WHERE id = $1',
     [id],
@@ -31,11 +35,21 @@ export async function getMonitor(id: string): Promise<Monitor | null> {
   return rows[0] ?? null;
 }
 
-export async function createMonitor(input: CreateMonitorInput): Promise<Monitor> {
+// Someone else's monitor looks exactly like one that does not exist (null), so a caller
+// cannot even discover which ids are in use.
+export async function getMonitorForOwner(id: string, ownerId: string): Promise<Monitor | null> {
+  const { rows } = await pool.query<Monitor>(
+    'SELECT * FROM monitors WHERE id = $1 AND api_key_id = $2',
+    [id, ownerId],
+  );
+  return rows[0] ?? null;
+}
+
+export async function createMonitor(input: CreateMonitorInput, ownerId: string): Promise<Monitor> {
   const { rows } = await pool.query<Monitor>(
     `INSERT INTO monitors
-       (name, url, method, expected_status, interval_seconds, timeout_ms, webhook_url)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+       (name, url, method, expected_status, interval_seconds, timeout_ms, webhook_url, api_key_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
     [
       input.name,
@@ -45,6 +59,7 @@ export async function createMonitor(input: CreateMonitorInput): Promise<Monitor>
       input.interval_seconds,
       input.timeout_ms,
       input.webhook_url ?? null,
+      ownerId,
     ],
   );
   const monitor = rows[0];
@@ -72,6 +87,7 @@ const UPDATABLE_COLUMNS = [
 
 export async function updateMonitor(
   id: string,
+  ownerId: string,
   input: UpdateMonitorInput,
 ): Promise<UpdateResult> {
   // A transaction must run on one connection, so take a dedicated client from the pool.
@@ -82,8 +98,8 @@ export async function updateMonitor(
     // FOR UPDATE locks the row until COMMIT, so nobody can change it between our
     // check and our write.
     const current = await client.query<Monitor>(
-      'SELECT * FROM monitors WHERE id = $1 FOR UPDATE',
-      [id],
+      'SELECT * FROM monitors WHERE id = $1 AND api_key_id = $2 FOR UPDATE',
+      [id, ownerId],
     );
     const existing = current.rows[0];
     if (!existing) {
@@ -129,8 +145,8 @@ export async function updateMonitor(
   }
 }
 
-export async function deleteMonitor(id: string): Promise<boolean> {
-  const result = await pool.query('DELETE FROM monitors WHERE id = $1', [id]);
+export async function deleteMonitor(id: string, ownerId: string): Promise<boolean> {
+  const result = await pool.query('DELETE FROM monitors WHERE id = $1 AND api_key_id = $2', [id, ownerId]);
   return (result.rowCount ?? 0) > 0;
 }
 
