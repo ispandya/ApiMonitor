@@ -52,3 +52,14 @@ CREATE TABLE IF NOT EXISTS webhook_deliveries (
   delivered_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (incident_id, event)
 );
+
+
+-- API keys are stored only as a hash. The full key is shown once, when it is created.
+CREATE TABLE IF NOT EXISTS api_keys (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        TEXT NOT NULL,
+  key_prefix  TEXT NOT NULL,
+  key_hash    TEXT NOT NULL UNIQUE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  revoked_at  TIMESTAMPTZ
+);

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "db:migrate": "tsx src/db/migrate.ts",
-    "worker": "tsx src/worker.ts"
+    "worker": "tsx src/worker.ts",
+    "key:create": "tsx src/scripts/createApiKey.ts"
   },
   "keywords": [],
   "author": "",
